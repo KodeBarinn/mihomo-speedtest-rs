@@ -1,0 +1,63 @@
+[package]
+name = "mihomo-speedtest-rs"
+version = "1.0.0"
+edition = "2024"
+authors = ["Tunglies <selenvow+github@gmail.com>"]
+description = "High-performance Clash/Mihomo proxy speedtest tool with dual-mode testing: direct connection and real proxy forwarding through mihomo process. Supports multiple protocols including Shadowsocks, VMess, Trojan, Hysteria2, and more."
+license = "Apache-2.0"
+repository = "https://github.com/KodeBarinn/mihomo-speedtest-rs"
+homepage = "https://github.com/KodeBarinn/mihomo-speedtest-rs"
+documentation = "https://github.com/KodeBarinn/mihomo-speedtest-rs#readme"
+keywords = ["proxy", "speedtest", "clash", "mihomo", "shadowsocks", "networking"]
+categories = ["network-programming", "command-line-utilities"]
+readme = "README.md"
+
+[[bin]]
+name = "mihomo-speedtest"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.46", features = ["full"] }
+
+# HTTP and networking
+reqwest = { version = "0.12", features = ["json", "stream", "socks"] }
+hyper = { version = "1.6", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# CLI and output
+clap = { version = "4.5", features = ["derive"] }
+indicatif = "0.18"
+comfy-table = "7.1"
+colored = "3.0"
+
+# Utilities
+regex = "1.11"
+uuid = { version = "1.17", features = ["v4"] }
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+humantime = "2.2"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Statistics
+statrs = "0.18"
+
+# Futures
+futures = "0.3"
+
+# Tokio utilities
+tokio-util = { version = "0.7", features = ["io"] }
+
+# Base64 encoding/decoding
+base64 = "0.22"
+urlencoding = "2.1"
+
+[dev-dependencies]
+tempfile = "3.20"
+tokio-test = "0.4"

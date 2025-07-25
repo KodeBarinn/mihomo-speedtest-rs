@@ -1,0 +1,129 @@
+# 示例配置文件
+# 展示 mihomo-speedtest-rs 支持的各种代理协议
+
+mixed-port: 17890
+allow-lan: false
+mode: rule
+log-level: info
+external-controller: '127.0.0.1:19090'
+
+proxies:
+  # Shadowsocks 代理
+  - name: "SS-HK-01"
+    type: ss
+    server: ss.example.com
+    port: 443
+    cipher: aes-256-gcm
+    password: your_password_here
+    udp: true
+
+  # VMess 代理
+  - name: "VMess-JP-01"
+    type: vmess
+    server: vmess.example.com
+    port: 443
+    uuid: 12345678-1234-1234-1234-123456789abc
+    alterId: 0
+    cipher: auto
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    ws-opts:
+      path: /path
+      headers:
+        Host: vmess.example.com
+
+  # VLESS 代理
+  - name: "VLESS-US-01"
+    type: vless
+    server: vless.example.com
+    port: 443
+    uuid: 12345678-1234-1234-1234-123456789abc
+    tls: true
+    skip-cert-verify: true
+    network: ws
+    ws-opts:
+      path: /path
+      headers:
+        Host: vless.example.com
+
+  # Trojan 代理
+  - name: "Trojan-SG-01"
+    type: trojan
+    server: trojan.example.com
+    port: 443
+    password: your_trojan_password
+    udp: true
+    skip-cert-verify: true
+    network: ws
+    ws-opts:
+      path: /path
+      headers:
+        Host: trojan.example.com
+
+  # Hysteria2 代理
+  - name: "Hysteria2-KR-01"
+    type: hysteria2
+    server: hy2.example.com
+    port: 8443
+    ports: 21000-26000
+    password: your_hysteria2_password
+    skip-cert-verify: true
+
+  # AnyTLS 代理
+  - name: "AnyTLS-DE-01"
+    type: anytls
+    server: anytls.example.com
+    port: 4430
+    client-fingerprint: chrome
+    password: your_anytls_password
+    udp: true
+    tfo: true
+    skip-cert-verify: true
+
+  # HTTP 代理
+  - name: "HTTP-Proxy-01"
+    type: http
+    server: http.example.com
+    port: 8080
+    username: user
+    password: pass
+
+  # SOCKS5 代理
+  - name: "SOCKS5-Proxy-01"
+    type: socks5
+    server: socks5.example.com
+    port: 1080
+    username: user
+    password: pass
+    udp: true
+
+proxy-groups:
+  - name: "SpeedTest"
+    type: select
+    proxies:
+      - "SS-HK-01"
+      - "VMess-JP-01"
+      - "VLESS-US-01"
+      - "Trojan-SG-01"
+      - "Hysteria2-KR-01"
+      - "AnyTLS-DE-01"
+      - "HTTP-Proxy-01"
+      - "SOCKS5-Proxy-01"
+
+  - name: "Auto"
+    type: url-test
+    proxies:
+      - "SS-HK-01"
+      - "VMess-JP-01"
+      - "VLESS-US-01"
+      - "Trojan-SG-01"
+      - "Hysteria2-KR-01"
+      - "AnyTLS-DE-01"
+      - "HTTP-Proxy-01"
+      - "SOCKS5-Proxy-01"
+    url: "http://www.gstatic.com/generate_204"
+    interval: 300
+
+rules:
+  - MATCH,SpeedTest
