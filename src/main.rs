@@ -192,7 +192,7 @@ async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
     // Format and display results
     let formatter = ResultFormatter::new(args.json_output, !args.json_output);
     let output = formatter.format_results(&filtered_results);
-    println!("{}", output);
+    println!("{output}");
 
     if !args.json_output {
         println!("{}", formatter.format_summary(&filtered_results));
