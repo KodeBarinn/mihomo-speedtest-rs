@@ -588,10 +588,8 @@ cargo test
 
 ## 致谢
 
-- [Clash](https://github.com/Dreamacro/clash) - 代理工具参考
-- [Tokio](https://tokio.rs/) - 异步运行时
-- [Reqwest](https://github.com/seanmonstar/reqwest) - HTTP 客户端
-- [Clap](https://github.com/clap-rs/clap) - 命令行解析
+- [Mihomo](https://github.com/MetaCubeX/mihomo) - 代理工具
+- [clash-speedtest](https://github.com/faceair/clash-speedtest) - 项目灵感来源
 
 ---
 
