@@ -21,7 +21,7 @@ path = "src/main.rs"
 tokio = { version = "1.46", features = ["full"] }
 
 # HTTP and networking
-reqwest = { version = "0.12", features = ["json", "stream", "socks"] }
+reqwest = { version = "0.12", features = ["json", "stream", "socks", "native-tls-vendored"] }
 hyper = { version = "1.6", features = ["full"] }
 
 # Serialization

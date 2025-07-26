@@ -31,11 +31,8 @@ jobs:
           - os: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            arch: aarch64
-            target: aarch64-unknown-linux-gnu
           
-          # macOS
+          # macOS (both architectures natively supported)
           - os: macos-latest
             arch: x86_64
             target: x86_64-apple-darwin
@@ -63,27 +60,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-cargo-
 
-      - name: Install cross-compilation tools (Ubuntu aarch64)
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Configure cross-compilation (Ubuntu aarch64)
-        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64'
-        run: |
-          echo "[target.aarch64-unknown-linux-gnu]" >> ~/.cargo/config.toml
-          echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config.toml
-
       - name: Run cargo check
         run: cargo check --target ${{ matrix.target }} --verbose
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       - name: Run cargo clippy
         run: cargo clippy --target ${{ matrix.target }} --all-targets --all-features -- -D warnings
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       - name: Run cargo fmt check
         run: cargo fmt --all -- --check
