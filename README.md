@@ -131,8 +131,8 @@ mihomo-speedtest --config config.yaml \
 # 自定义测试参数
 mihomo-speedtest --config config.yaml \
   --server-url https://speed.cloudflare.com \
-  --download-size 104857600 \
-  --upload-size 52428800 \
+  --download-size 100 \
+  --upload-size 50 \
   --timeout 10 \
   --concurrent 8
 
@@ -474,9 +474,15 @@ exclude = ["测试", "过期", "免费"]
 
 3. **减少测试数据量**
    ```bash
+   # 使用 MB 格式，支持小数
    mihomo-speedtest --config config.yaml \
-     --download-size 10485760 \
-     --upload-size 5242880
+     --download-size 10 \
+     --upload-size 5
+   
+   # 支持小数值，如 0.5 MB
+   mihomo-speedtest --config config.yaml \
+     --download-size 0.5 \
+     --upload-size 1.5
    ```
 
 4. **使用过滤器**

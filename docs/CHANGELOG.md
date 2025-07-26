@@ -5,6 +5,40 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.2] - 2025-07-26
+
+### ✨ 用户体验改进
+
+#### 📏 下载/上传大小参数优化
+- **MB 格式输入**: `--download-size` 和 `--upload-size` 现在使用 MB 作为默认单位
+- **小数支持**: 支持小数值，如 `0.5`、`1.5` 等精确控制
+- **用户友好**: 更直观的大小设置，无需计算字节数
+- **向后兼容**: 内部仍使用字节，保持 API 兼容性
+
+#### 🎯 默认值更新
+- `--download-size` 默认从 `52428800` (字节) 改为 `50` (MB)
+- `--upload-size` 默认从 `20971520` (字节) 改为 `20` (MB)
+- 参数表格显示也相应更新为 MB 格式
+
+### 🛠️ 使用示例
+
+```bash
+# 新的 MB 格式（更易理解）
+mihomo-speedtest --config config.yaml --download-size 50 --upload-size 20
+
+# 支持小数值
+mihomo-speedtest --config config.yaml --download-size 0.5 --upload-size 1.5
+
+# 旧格式对比
+# 旧: --download-size 52428800
+# 新: --download-size 50
+```
+
+### 📚 文档更新
+- 更新所有文档中的大小参数示例
+- CLI 帮助文本更新为 MB 格式说明
+- 添加小数值支持的使用示例
+
 ## [1.1.1] - 2025-07-26
 
 ### 🐛 Bug 修复

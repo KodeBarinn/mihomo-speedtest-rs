@@ -25,12 +25,12 @@ pub struct Cli {
     #[arg(long = "server-url", default_value = "https://speed.cloudflare.com")]
     pub server_url: String,
 
-    /// Download size in bytes for testing
-    #[arg(long = "download-size", default_value = "52428800")]
+    /// Download size in MB for testing (supports decimal like 0.5)
+    #[arg(long = "download-size", default_value = "50", value_parser = parse_size_mb)]
     pub download_size: usize,
 
-    /// Upload size in bytes for testing
-    #[arg(long = "upload-size", default_value = "20971520")]
+    /// Upload size in MB for testing (supports decimal like 0.5)
+    #[arg(long = "upload-size", default_value = "20", value_parser = parse_size_mb)]
     pub upload_size: usize,
 
     /// Download timeout in seconds (or duration like "10s", "1m")
@@ -118,6 +118,22 @@ pub struct Cli {
     pub show_about: bool,
 }
 
+/// Parse size in MB from string (supports decimal values like 0.5)
+fn parse_size_mb(s: &str) -> Result<usize, String> {
+    // Parse as a floating-point number in MB
+    let mb = s
+        .parse::<f64>()
+        .map_err(|e| format!("Invalid size format: {}", e))?;
+
+    if mb < 0.0 {
+        return Err("Size cannot be negative".to_string());
+    }
+
+    // Convert MB to bytes (1 MB = 1024 * 1024 bytes)
+    let bytes = (mb * 1024.0 * 1024.0) as usize;
+    Ok(bytes)
+}
+
 /// Parse latency duration from either milliseconds (number) or duration string
 fn parse_latency_duration(s: &str) -> Result<Duration, String> {
     // Try to parse as a number (milliseconds for latency)
@@ -203,16 +219,16 @@ impl Cli {
 
         table.add_numeric_param(
             "download-size",
-            52428800_usize,
-            self.download_size,
-            "Download size in bytes for testing",
+            50_usize,
+            self.download_size / (1024 * 1024), // Convert bytes back to MB for display
+            "Download size in MB for testing",
         );
 
         table.add_numeric_param(
             "upload-size",
-            20971520_usize,
-            self.upload_size,
-            "Upload size in bytes for testing",
+            20_usize,
+            self.upload_size / (1024 * 1024), // Convert bytes back to MB for display
+            "Upload size in MB for testing",
         );
 
         // Timeout configuration

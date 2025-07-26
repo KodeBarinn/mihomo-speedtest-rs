@@ -122,12 +122,18 @@ cargo run -- --config example-config.yaml --verbose
 ### 自定义测试参数
 
 ```bash
-# 自定义下载/上传大小和并发数
+# 自定义下载/上传大小 (MB 格式) 和并发数
 cargo run -- --config example-config.yaml \
-  --download-size 104857600 \
-  --upload-size 52428800 \
+  --download-size 100 \
+  --upload-size 50 \
   --timeout 10s \
   --concurrent 8
+
+# 支持小数值，适合快速测试
+cargo run -- --config example-config.yaml \
+  --download-size 0.5 \
+  --upload-size 1.5 \
+  --fast
 
 # mihomo 模式自定义端口
 cargo run -- --config example-config.yaml --use-mihomo \

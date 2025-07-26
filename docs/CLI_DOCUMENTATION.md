@@ -104,25 +104,31 @@ mihomo-speedtest --config config.yaml --server-url https://speed.example.com
 ```
 
 #### `--download-size <DOWNLOAD_SIZE>`
-设置下载测试的数据大小（字节）。
+设置下载测试的数据大小（MB）。支持小数格式。
 
-**默认值：** `52428800`（50MB）
+**默认值：** `50`（50MB）
 
 **示例：**
 ```bash
 # 使用 100MB 进行下载测试
-mihomo-speedtest --config config.yaml --download-size 104857600
+mihomo-speedtest --config config.yaml --download-size 100
+
+# 使用 0.5MB 进行快速测试
+mihomo-speedtest --config config.yaml --download-size 0.5
 ```
 
 #### `--upload-size <UPLOAD_SIZE>`
-设置上传测试的数据大小（字节）。
+设置上传测试的数据大小（MB）。支持小数格式。
 
-**默认值：** `20971520`（20MB）
+**默认值：** `20`（20MB）
 
 **示例：**
 ```bash
 # 使用 10MB 进行上传测试
-mihomo-speedtest --config config.yaml --upload-size 10485760
+mihomo-speedtest --config config.yaml --upload-size 10
+
+# 使用 1.5MB 进行快速测试
+mihomo-speedtest --config config.yaml --upload-size 1.5
 ```
 
 #### `--timeout <TIMEOUT>`
@@ -452,9 +458,15 @@ proxies:
 
 3. **减少测试数据大小以加快测试**
    ```bash
+   # 使用 MB 格式，支持小数
    mihomo-speedtest --config config.yaml \
-     --download-size 10485760 \
-     --upload-size 5242880
+     --download-size 10 \
+     --upload-size 5
+   
+   # 使用小数值进行快速测试
+   mihomo-speedtest --config config.yaml \
+     --download-size 0.5 \
+     --upload-size 1
    ```
 
 4. **使用过滤器减少测试节点**
