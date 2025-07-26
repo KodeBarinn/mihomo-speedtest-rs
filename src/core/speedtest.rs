@@ -87,7 +87,7 @@ impl SpeedTestResult {
     pub fn format_download_speed(&self) -> String {
         if self.download_speed > 0.0 {
             let mbps = self.download_speed / (1024.0 * 1024.0);
-            format!("{:.2} MB/s", mbps)
+            format!("{mbps:.2} MB/s")
         } else {
             "Failed".to_string()
         }
@@ -97,7 +97,7 @@ impl SpeedTestResult {
     pub fn format_upload_speed(&self) -> String {
         if self.upload_speed > 0.0 {
             let mbps = self.upload_speed / (1024.0 * 1024.0);
-            format!("{:.2} MB/s", mbps)
+            format!("{mbps:.2} MB/s")
         } else {
             "Failed".to_string()
         }
@@ -143,7 +143,7 @@ impl SpeedTester {
                 return Ok(SpeedTestResult::failed(
                     proxy.name.clone(),
                     proxy.proxy_type.clone(),
-                    format!("Latency test failed: {}", e),
+                    format!("Latency test failed: {e}"),
                 ));
             }
         };

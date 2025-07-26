@@ -61,7 +61,7 @@ impl RealSpeedTester {
                 upload_speed: 0.0,
                 download_time: None,
                 upload_time: None,
-                error: Some(format!("Failed to switch proxy: {}", e)),
+                error: Some(format!("Failed to switch proxy: {e}")),
                 timestamp: start_time,
             };
         }
@@ -83,7 +83,7 @@ impl RealSpeedTester {
                     upload_speed: 0.0,
                     download_time: None,
                     upload_time: None,
-                    error: Some(format!("Latency test failed: {}", e)),
+                    error: Some(format!("Latency test failed: {e}")),
                     timestamp: start_time,
                 };
             }
@@ -221,7 +221,7 @@ impl RealSpeedTester {
                     None,
                     0.0,
                     None,
-                    Some(format!("Failed to create proxy client: {}", e)),
+                    Some(format!("Failed to create proxy client: {e}")),
                 );
             }
         };
@@ -238,7 +238,7 @@ impl RealSpeedTester {
                     None,
                     0.0,
                     None,
-                    Some(format!("Failed to create upload proxy client: {}", e)),
+                    Some(format!("Failed to create upload proxy client: {e}")),
                 );
             }
         };

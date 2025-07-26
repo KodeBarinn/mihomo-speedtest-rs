@@ -491,7 +491,7 @@ impl ConfigLoader {
         }
 
         Ok(ProxyConfig {
-            name: format!("SOCKS5-{}", server),
+            name: format!("SOCKS5-{server}"),
             proxy_type: ProxyType::Socks5,
             server,
             port,

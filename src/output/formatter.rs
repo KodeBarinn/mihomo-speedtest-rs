@@ -77,7 +77,7 @@ impl ResultFormatter {
         match result.latency {
             Some(latency) => {
                 let latency_ms = latency.as_millis();
-                let text = format!("{}ms", latency_ms);
+                let text = format!("{latency_ms}ms");
 
                 if !self.use_colors {
                     return Cell::new(text);
@@ -110,7 +110,7 @@ impl ResultFormatter {
         match result.jitter {
             Some(jitter) => {
                 let jitter_ms = jitter.as_millis();
-                let text = format!("{}ms", jitter_ms);
+                let text = format!("{jitter_ms}ms");
 
                 if !self.use_colors {
                     return Cell::new(text);
@@ -141,7 +141,7 @@ impl ResultFormatter {
         }
 
         let speed_mbps = speed / (1024.0 * 1024.0);
-        let text = format!("{:.2} MB/s", speed_mbps);
+        let text = format!("{speed_mbps:.2} MB/s");
 
         if !self.use_colors {
             return Cell::new(text);
@@ -200,8 +200,7 @@ impl ResultFormatter {
         };
 
         format!(
-            "\n📊 Summary:\n  Total: {} | ✅ Success: {} | ❌ Failed: {}\n  📈 Avg Latency: {}ms | 📊 Avg Download: {:.2} MB/s",
-            total, successful, failed, avg_latency, avg_download_speed
+            "\n📊 Summary:\n  Total: {total} | ✅ Success: {successful} | ❌ Failed: {failed}\n  📈 Avg Latency: {avg_latency}ms | 📊 Avg Download: {avg_download_speed:.2} MB/s"
         )
     }
 }

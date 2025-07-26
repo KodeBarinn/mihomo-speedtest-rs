@@ -142,7 +142,7 @@ impl BandwidthTester {
         server_url: &str,
         size: usize,
     ) -> Result<ChunkResult> {
-        let url = format!("{}/__down?bytes={}", server_url, size);
+        let url = format!("{server_url}/__down?bytes={size}");
         let _start = Instant::now();
 
         let response = client.get(&url).await?;

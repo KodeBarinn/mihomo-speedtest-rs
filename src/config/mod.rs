@@ -46,7 +46,7 @@ impl FromStr for ProxyType {
             "http" => Ok(ProxyType::Http),
             "https" => Ok(ProxyType::Https),
             "anytls" => Ok(ProxyType::AnyTLS),
-            _ => Err(format!("Unknown proxy type: {}", s)),
+            _ => Err(format!("Unknown proxy type: {s}")),
         }
     }
 }
@@ -215,7 +215,7 @@ where
             E: de::Error,
         {
             v.parse::<u16>()
-                .map_err(|_| de::Error::custom(format!("invalid port string: {}", v)))
+                .map_err(|_| de::Error::custom(format!("invalid port string: {v}")))
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
@@ -225,7 +225,7 @@ where
             if v >= 0 && v <= u16::MAX as i64 {
                 Ok(v as u16)
             } else {
-                Err(de::Error::custom(format!("port out of range: {}", v)))
+                Err(de::Error::custom(format!("port out of range: {v}")))
             }
         }
 
@@ -236,7 +236,7 @@ where
             if v <= u16::MAX as u64 {
                 Ok(v as u16)
             } else {
-                Err(de::Error::custom(format!("port out of range: {}", v)))
+                Err(de::Error::custom(format!("port out of range: {v}")))
             }
         }
     }

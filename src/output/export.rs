@@ -88,10 +88,7 @@ impl ConfigExporter {
         let location = Self::extract_location(&proxy.name)
             .unwrap_or_else(|| Self::guess_location_from_server(&proxy.server));
 
-        format!(
-            "{} | 📈 {:.1}MB/s | ⏱️ {}ms",
-            location, speed_mbps, latency_ms
-        )
+        format!("{location} | 📈 {speed_mbps:.1}MB/s | ⏱️ {latency_ms}ms")
     }
 
     /// Extract location from proxy name
