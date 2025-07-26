@@ -123,7 +123,7 @@ fn parse_size_mb(s: &str) -> Result<usize, String> {
     // Parse as a floating-point number in MB
     let mb = s
         .parse::<f64>()
-        .map_err(|e| format!("Invalid size format: {}", e))?;
+        .map_err(|e| format!("Invalid size format: {e}"))?;
 
     if mb < 0.0 {
         return Err("Size cannot be negative".to_string());
