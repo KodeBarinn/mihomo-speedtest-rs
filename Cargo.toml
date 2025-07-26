@@ -8,7 +8,7 @@ license = "Apache-2.0"
 repository = "https://github.com/KodeBarinn/mihomo-speedtest-rs"
 homepage = "https://github.com/KodeBarinn/mihomo-speedtest-rs"
 documentation = "https://github.com/KodeBarinn/mihomo-speedtest-rs#readme"
-keywords = ["proxy", "speedtest", "clash", "mihomo", "shadowsocks", "networking"]
+keywords = ["proxy", "speedtest", "clash", "mihomo", "networking"]
 categories = ["network-programming", "command-line-utilities"]
 readme = "README.md"
 
