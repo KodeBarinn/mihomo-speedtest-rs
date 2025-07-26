@@ -161,6 +161,45 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+      - name: Extract changelog for current version
+        id: changelog
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ inputs.tag }}"
+            VERSION=${VERSION#v}
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          
+          # Extract changelog content for the current version
+          # Find the start and end of the version section
+          START_LINE=$(grep -n "^## \[$VERSION\]" docs/CHANGELOG.md | head -1 | cut -d: -f1)
+          if [ -z "$START_LINE" ]; then
+            echo "Warning: Version $VERSION not found in CHANGELOG.md"
+            echo "CHANGELOG_CONTENT=Version $VERSION changelog not found. See [CHANGELOG.md](https://github.com/KodeBarinn/mihomo-speedtest-rs/blob/main/docs/CHANGELOG.md) for details." >> $GITHUB_OUTPUT
+          else
+            # Find the next version section or end of file
+            NEXT_LINE=$(tail -n +$((START_LINE + 1)) docs/CHANGELOG.md | grep -n "^## \[" | head -1 | cut -d: -f1)
+            if [ -z "$NEXT_LINE" ]; then
+              # No next version found, take to end of file
+              CONTENT=$(tail -n +$START_LINE docs/CHANGELOG.md)
+            else
+              # Take until next version section
+              END_LINE=$((START_LINE + NEXT_LINE - 1))
+              CONTENT=$(sed -n "${START_LINE},${END_LINE}p" docs/CHANGELOG.md)
+            fi
+            
+            # Remove the version header line since we'll add our own
+            CONTENT=$(echo "$CONTENT" | tail -n +2)
+            
+            # Handle multiline content for GitHub Actions output
+            {
+              echo "CHANGELOG_CONTENT<<EOF"
+              echo "$CONTENT"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -176,6 +215,10 @@ jobs:
             cargo install mihomo-speedtest-rs
             ```
             
-            See [CHANGELOG.md](https://github.com/KodeBarinn/mihomo-speedtest-rs/blob/main/CHANGELOG.md) for details.
+            ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
+            
+            ---
+            
+            For complete changelog, see [CHANGELOG.md](https://github.com/KodeBarinn/mihomo-speedtest-rs/blob/main/docs/CHANGELOG.md).
           draft: false
           prerelease: false

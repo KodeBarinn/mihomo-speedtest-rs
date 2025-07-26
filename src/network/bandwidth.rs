@@ -118,12 +118,28 @@ impl BandwidthTester {
             .await?;
 
         let duration = start.elapsed();
+        debug!("Upload response status: {}", response.status());
+        debug!("Upload response headers: {:?}", response.headers());
 
         if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Upload failed with status: {}",
-                response.status()
-            ));
+            let status = response.status();
+            // Try to read response body for error details
+            match response.text().await {
+                Ok(body) => {
+                    debug!("Upload failed with status {}, body: {}", status, body);
+                    return Err(anyhow::anyhow!(
+                        "Upload failed with status: {}, body: {}",
+                        status,
+                        body
+                    ));
+                }
+                Err(_) => {
+                    return Err(anyhow::anyhow!(
+                        "Upload failed with status: {}",
+                        status
+                    ));
+                }
+            }
         }
 
         debug!(
@@ -146,16 +162,40 @@ impl BandwidthTester {
         let _start = Instant::now();
 
         let response = client.get(&url).await?;
+        debug!("Download chunk response status: {}", response.status());
+        debug!("Download chunk response headers: {:?}", response.headers());
+        
         if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Download chunk failed with status: {}",
-                response.status()
-            ));
+            let status = response.status();
+            // Try to read response body for error details
+            match response.text().await {
+                Ok(body) => {
+                    debug!("Download chunk failed with status {}, body: {}", status, body);
+                    return Err(anyhow::anyhow!(
+                        "Download chunk failed with status: {}, body: {}",
+                        status,
+                        body
+                    ));
+                }
+                Err(_) => {
+                    return Err(anyhow::anyhow!(
+                        "Download chunk failed with status: {}",
+                        status
+                    ));
+                }
+            }
         }
 
-        let bytes = response.bytes().await?;
-
-        Ok(ChunkResult { bytes: bytes.len() })
+        match response.bytes().await {
+            Ok(bytes) => {
+                debug!("Download chunk successfully received {} bytes", bytes.len());
+                Ok(ChunkResult { bytes: bytes.len() })
+            }
+            Err(e) => {
+                debug!("Download chunk failed to decode response body: {}", e);
+                Err(anyhow::anyhow!("Download chunk failed to decode response body: {}", e))
+            }
+        }
     }
 }
 

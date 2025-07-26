@@ -398,42 +398,119 @@ impl CustomBandwidthTester {
         concurrent: usize,
     ) -> Result<crate::network::BandwidthResult> {
         let start = std::time::Instant::now();
-        let chunk_size = size / concurrent;
+        
+        // For real proxy testing, use more conservative concurrency
+        let actual_concurrent = std::cmp::min(concurrent, 2);
+        debug!("Using {} concurrent connections for real proxy download test", actual_concurrent);
+        
+        let chunk_size = size / actual_concurrent;
 
         let mut tasks = Vec::new();
-        for i in 0..concurrent {
+        for i in 0..actual_concurrent {
             let client = self.client.clone();
-            let url = format!("{}/__down?bytes={}", self.server_url, chunk_size);
+            let server_url = self.server_url.clone();
 
             let task = tokio::spawn(async move {
-                debug!("Starting download chunk {} of size {}", i + 1, chunk_size);
-                match client.get(&url).send().await {
-                    Ok(response) => {
-                        let bytes = response.bytes().await?;
-                        Ok(bytes.len())
+                // Try downloading with retries
+                for attempt in 1..=3 {
+                    debug!("Starting download chunk {} attempt {} of size {}", i + 1, attempt, chunk_size);
+                    match Self::download_chunk_with_retry(&client, &server_url, chunk_size, i + 1, attempt).await {
+                        Ok(bytes) => return Ok(bytes),
+                        Err(e) if attempt < 3 => {
+                            warn!("Download chunk {} attempt {} failed: {}, retrying...", i + 1, attempt, e);
+                            tokio::time::sleep(std::time::Duration::from_millis(100 * attempt as u64)).await;
+                            continue;
+                        }
+                        Err(e) => {
+                            warn!("Download chunk {} failed after {} attempts: {}", i + 1, attempt, e);
+                            return Err(e);
+                        }
                     }
-                    Err(e) => Err(anyhow::anyhow!("Download chunk {} failed: {}", i + 1, e)),
                 }
+                unreachable!()
             });
             tasks.push(task);
         }
 
         let mut total_bytes = 0;
-        for task in tasks {
+        let mut successful_chunks = 0;
+        for (i, task) in tasks.into_iter().enumerate() {
             match task.await? {
-                Ok(bytes) => total_bytes += bytes,
-                Err(e) => return Err(e),
+                Ok(bytes) => {
+                    total_bytes += bytes;
+                    successful_chunks += 1;
+                    debug!("Download chunk {} completed successfully", i + 1);
+                }
+                Err(e) => {
+                    warn!("Download chunk {} failed permanently: {}", i + 1, e);
+                    // Continue with other chunks instead of failing entirely
+                }
             }
+        }
+
+        if successful_chunks == 0 {
+            return Err(anyhow::anyhow!("All download chunks failed"));
         }
 
         let duration = start.elapsed();
         let speed = total_bytes as f64 / duration.as_secs_f64();
+
+        debug!(
+            "Download completed: {}/{} chunks successful, {} bytes in {:?} ({:.2} MB/s)",
+            successful_chunks,
+            actual_concurrent,
+            total_bytes,
+            duration,
+            total_bytes as f64 / (1024.0 * 1024.0) / duration.as_secs_f64()
+        );
 
         Ok(crate::network::BandwidthResult {
             bytes: total_bytes,
             speed,
             duration,
         })
+    }
+    
+    async fn download_chunk_with_retry(
+        client: &reqwest::Client,
+        server_url: &str,
+        chunk_size: usize,
+        chunk_id: usize,
+        attempt: usize,
+    ) -> Result<usize> {
+        let url = format!("{}/__down?bytes={}", server_url, chunk_size);
+        
+        match client.get(&url).send().await {
+            Ok(response) => {
+                debug!("Download chunk {} attempt {} response status: {}", chunk_id, attempt, response.status());
+                
+                if !response.status().is_success() {
+                    let status = response.status();
+                    // Read response body for error details
+                    match response.text().await {
+                        Ok(body) => {
+                            return Err(anyhow::anyhow!("Download chunk {} failed with status: {}, body: {}", chunk_id, status, body));
+                        }
+                        Err(_) => {
+                            return Err(anyhow::anyhow!("Download chunk {} failed with status: {}", chunk_id, status));
+                        }
+                    }
+                }
+                
+                match response.bytes().await {
+                    Ok(bytes) => {
+                        debug!("Download chunk {} attempt {} successfully received {} bytes", chunk_id, attempt, bytes.len());
+                        Ok(bytes.len())
+                    }
+                    Err(e) => {
+                        Err(anyhow::anyhow!("Download chunk {} failed to decode response body: {}", chunk_id, e))
+                    }
+                }
+            }
+            Err(e) => {
+                Err(anyhow::anyhow!("Download chunk {} request failed: {}", chunk_id, e))
+            }
+        }
     }
 
     async fn test_upload(&self, size: usize) -> Result<crate::network::BandwidthResult> {
@@ -444,13 +521,38 @@ impl CustomBandwidthTester {
         let data = vec![0u8; size];
 
         debug!("Starting upload of {} bytes", size);
-        let response = self.client.post(&url).body(data).send().await?;
+        let response = match self.client.post(&url).body(data).send().await {
+            Ok(resp) => {
+                debug!("Upload response status: {}", resp.status());
+                debug!("Upload response headers: {:?}", resp.headers());
+                resp
+            }
+            Err(e) => {
+                warn!("Upload request failed: {}", e);
+                return Err(anyhow::anyhow!("Upload request failed: {}", e));
+            }
+        };
 
         if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Upload failed with status: {}",
-                response.status()
-            ));
+            let status = response.status();
+            // Read response body for error details
+            match response.text().await {
+                Ok(body) => {
+                    warn!("Upload failed with status {}, body: {}", status, body);
+                    return Err(anyhow::anyhow!(
+                        "Upload failed with status: {}, body: {}",
+                        status,
+                        body
+                    ));
+                }
+                Err(body_err) => {
+                    warn!("Upload failed with status {} and couldn't read body: {}", status, body_err);
+                    return Err(anyhow::anyhow!(
+                        "Upload failed with status: {}",
+                        status
+                    ));
+                }
+            }
         }
 
         let duration = start.elapsed();

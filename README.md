@@ -168,7 +168,7 @@ mihomo-speedtest --config config.yaml --fast \
 
 ## CLI 文档
 
-完整的 CLI 使用文档请查看 [CLI_DOCUMENTATION.md](CLI_DOCUMENTATION.md)。
+完整的 CLI 使用文档请查看 [CLI_DOCUMENTATION.md](docs/CLI_DOCUMENTATION.md)。
 
 ### 主要参数
 
@@ -222,7 +222,7 @@ mihomo-speedtest --config config.yaml --timeout 20 --max-latency 800
 
 ## API 文档
 
-作为库使用的完整 API 文档请查看 [API_DOCUMENTATION.md](API_DOCUMENTATION.md)。
+作为库使用的完整 API 文档请查看 [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)。
 
 ### 基本库使用
 
@@ -511,8 +511,11 @@ exclude = ["测试", "过期", "免费"]
 # 启用详细输出
 mihomo-speedtest --config config.yaml --verbose
 
-# 设置日志级别
+# 设置日志级别查看调试信息
 RUST_LOG=debug mihomo-speedtest --config config.yaml
+
+# 调试 mihomo 模式的网络问题
+RUST_LOG=debug mihomo-speedtest --config config.yaml --use-mihomo
 ```
 
 ## 开发
@@ -595,8 +598,10 @@ cargo test
 
 ## 相关链接
 
-- [CLI 使用文档](CLI_DOCUMENTATION.md)
-- [API 函数文档](API_DOCUMENTATION.md)
-- [Mihomo 真实测速使用指南](MIHOMO_USAGE.md)
+- [CLI 使用文档](docs/CLI_DOCUMENTATION.md)
+- [API 函数文档](docs/API_DOCUMENTATION.md)
+- [Mihomo 真实测速使用指南](docs/MIHOMO_USAGE.md)
+- [使用示例文档](docs/USAGE_EXAMPLES.md)
+- [更新日志](docs/CHANGELOG.md)
 - [GitHub 仓库](https://github.com/KodeBarinn/mihomo-speedtest-rs)
 - [问题反馈](https://github.com/KodeBarinn/mihomo-speedtest-rs/issues)

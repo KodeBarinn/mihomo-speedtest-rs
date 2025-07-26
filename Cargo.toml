@@ -1,6 +1,6 @@
 [package]
 name = "mihomo-speedtest-rs"
-version = "1.0.0"
+version = "1.1.1"
 edition = "2024"
 authors = ["Tunglies <selenvow+github@gmail.com>"]
 description = "High-performance Clash/Mihomo proxy speedtest tool with dual-mode testing: direct connection and real proxy forwarding through mihomo process. Supports multiple protocols including Shadowsocks, VMess, Trojan, Hysteria2, and more."

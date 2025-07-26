@@ -54,6 +54,18 @@ async fn main() {
 async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
     info!("🚀 Starting Mihomo SpeedTest");
 
+    // Display parameter table unless in JSON output mode
+    if !args.json_output {
+        let param_table = args.create_parameter_table();
+        println!("\n📋 Configuration Parameters");
+        println!("{}", param_table.format_table());
+        println!(
+            "📊 Summary: {}/{} parameters customized\n",
+            param_table.customized_count(),
+            param_table.total_count()
+        );
+    }
+
     // Load configuration
     let loader = ConfigLoader::new();
     let mut proxies = loader.load_from_paths(config_paths).await?;

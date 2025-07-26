@@ -1,3 +1,4 @@
+use super::parameters::ParameterTable;
 use clap::Parser;
 use std::time::Duration;
 
@@ -164,5 +165,185 @@ impl Cli {
             min_upload_speed: Some(self.min_upload_speed * 1024.0 * 1024.0), // Convert MB/s to bytes/s
             fast_mode: self.fast_mode,
         }
+    }
+
+    /// Create a parameter table showing default vs current values
+    pub fn create_parameter_table(&self) -> ParameterTable {
+        let mut table = ParameterTable::new();
+
+        // Basic configuration parameters
+        table.add_string_param(
+            "config",
+            "Required",
+            self.config_paths.as_ref().unwrap_or(&"None".to_string()),
+            "Configuration file path or URL",
+        );
+
+        table.add_string_param(
+            "filter-regex",
+            ".+",
+            &self.filter_regex,
+            "Filter proxies by name using regex",
+        );
+
+        table.add_optional_string_param(
+            "block-keywords",
+            None,
+            &self.block_keywords,
+            "Block proxies by keywords",
+        );
+
+        // Network configuration
+        table.add_string_param(
+            "server-url",
+            "https://speed.cloudflare.com",
+            &self.server_url,
+            "Speed test server URL",
+        );
+
+        table.add_numeric_param(
+            "download-size",
+            52428800_usize,
+            self.download_size,
+            "Download size in bytes for testing",
+        );
+
+        table.add_numeric_param(
+            "upload-size",
+            20971520_usize,
+            self.upload_size,
+            "Upload size in bytes for testing",
+        );
+
+        // Timeout configuration
+        table.add_duration_param(
+            "download-timeout",
+            Duration::from_secs(10),
+            self.download_timeout,
+            "Download timeout",
+        );
+
+        table.add_duration_param(
+            "upload-timeout",
+            Duration::from_secs(30),
+            self.upload_timeout,
+            "Upload timeout",
+        );
+
+        table.add_optional_duration_param(
+            "timeout",
+            None,
+            self.timeout,
+            "Unified timeout (overrides individual timeouts)",
+        );
+
+        // Performance parameters
+        table.add_numeric_param(
+            "concurrent",
+            4_usize,
+            self.concurrent,
+            "Number of concurrent connections",
+        );
+
+        table.add_numeric_param(
+            "max-concurrent",
+            1_usize,
+            self.max_concurrent,
+            "Maximum proxies to test concurrently",
+        );
+
+        // Filtering thresholds
+        table.add_duration_param(
+            "max-latency",
+            Duration::from_millis(800),
+            self.max_latency,
+            "Maximum allowed latency",
+        );
+
+        table.add_numeric_param(
+            "min-download-speed",
+            5.0_f64,
+            self.min_download_speed,
+            "Minimum download speed (MB/s)",
+        );
+
+        table.add_numeric_param(
+            "min-upload-speed",
+            2.0_f64,
+            self.min_upload_speed,
+            "Minimum upload speed (MB/s)",
+        );
+
+        // Mode flags
+        table.add_bool_param(
+            "fast-mode",
+            false,
+            self.fast_mode,
+            "Fast mode: only test latency",
+        );
+
+        table.add_bool_param(
+            "rename-nodes",
+            false,
+            self.rename_nodes,
+            "Rename nodes with location and speed info",
+        );
+
+        table.add_bool_param(
+            "stash-compatible",
+            false,
+            self.stash_compatible,
+            "Enable Stash compatibility mode",
+        );
+
+        // Output options
+        table.add_bool_param(
+            "json-output",
+            false,
+            self.json_output,
+            "Output results in JSON format",
+        );
+
+        table.add_bool_param("verbose", false, self.verbose, "Verbose output");
+
+        table.add_optional_string_param("output", None, &self.output, "Output config file path");
+
+        // Mihomo configuration
+        table.add_bool_param(
+            "use-mihomo",
+            false,
+            self.use_mihomo,
+            "Use mihomo process for real proxy testing",
+        );
+
+        table.add_optional_string_param(
+            "mihomo-binary",
+            None,
+            &self.mihomo_binary,
+            "Path to mihomo binary",
+        );
+
+        table.add_numeric_param(
+            "mihomo-api-port",
+            19090_u16,
+            self.mihomo_api_port,
+            "Mihomo API port",
+        );
+
+        table.add_numeric_param(
+            "mihomo-proxy-port",
+            17890_u16,
+            self.mihomo_proxy_port,
+            "Mihomo proxy port",
+        );
+
+        table.add_string_param(
+            "mihomo-config-dir",
+            "./mihomo-temp",
+            &self.mihomo_config_dir,
+            "Mihomo config directory",
+        );
+
+        table
     }
 }
