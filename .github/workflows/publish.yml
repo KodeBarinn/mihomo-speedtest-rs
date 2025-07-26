@@ -42,6 +42,9 @@ jobs:
           - os: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
           
           # macOS (both architectures natively supported)
           - os: macos-latest
@@ -71,11 +74,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-cargo-
 
+      - name: Install cross for cross-compilation
+        if: matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64'
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
       - name: Run cargo check
-        run: cargo check --target ${{ matrix.target }} --verbose
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [ "${{ matrix.arch }}" = "aarch64" ]; then
+            cross check --target ${{ matrix.target }} --verbose
+          else
+            cargo check --target ${{ matrix.target }} --verbose
+          fi
 
       - name: Run cargo clippy
-        run: cargo clippy --target ${{ matrix.target }} --all-targets --all-features -- -D warnings
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [ "${{ matrix.arch }}" = "aarch64" ]; then
+            cross clippy --target ${{ matrix.target }} --all-targets --all-features -- -D warnings
+          else
+            cargo clippy --target ${{ matrix.target }} --all-targets --all-features -- -D warnings
+          fi
 
       - name: Run cargo fmt check
         run: cargo fmt --all -- --check
