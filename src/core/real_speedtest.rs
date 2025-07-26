@@ -478,7 +478,7 @@ impl CustomBandwidthTester {
         chunk_id: usize,
         attempt: usize,
     ) -> Result<usize> {
-        let url = format!("{}/__down?bytes={}", server_url, chunk_size);
+        let url = format!("{server_url}/__down?bytes={chunk_size}");
         
         match client.get(&url).send().await {
             Ok(response) => {
