@@ -18,11 +18,11 @@ path = "src/main.rs"
 
 [dependencies]
 # Async runtime
-tokio = { version = "1.46", features = ["full"] }
+tokio = { version = "1.46", features = ["rt-multi-thread", "fs", "time", "io-util", "sync", "macros"] }
 
 # HTTP and networking
 reqwest = { version = "0.12", features = ["json", "stream", "socks", "native-tls-vendored"] }
-hyper = { version = "1.6", features = ["full"] }
+hyper = { version = "1.6", features = ["client", "http1", "http2"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -45,8 +45,7 @@ tracing-subscriber = "0.3"
 humantime = "2.2"
 chrono = { version = "0.4", features = ["serde"] }
 
-# Statistics
-statrs = "0.18"
+# Statistics - using custom implementation in src/core/statistics.rs
 
 # Futures
 futures = "0.3"
