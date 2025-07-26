@@ -398,11 +398,14 @@ impl CustomBandwidthTester {
         concurrent: usize,
     ) -> Result<crate::network::BandwidthResult> {
         let start = std::time::Instant::now();
-        
+
         // For real proxy testing, use more conservative concurrency
         let actual_concurrent = std::cmp::min(concurrent, 2);
-        debug!("Using {} concurrent connections for real proxy download test", actual_concurrent);
-        
+        debug!(
+            "Using {} concurrent connections for real proxy download test",
+            actual_concurrent
+        );
+
         let chunk_size = size / actual_concurrent;
 
         let mut tasks = Vec::new();
@@ -413,16 +416,42 @@ impl CustomBandwidthTester {
             let task = tokio::spawn(async move {
                 // Try downloading with retries
                 for attempt in 1..=3 {
-                    debug!("Starting download chunk {} attempt {} of size {}", i + 1, attempt, chunk_size);
-                    match Self::download_chunk_with_retry(&client, &server_url, chunk_size, i + 1, attempt).await {
+                    debug!(
+                        "Starting download chunk {} attempt {} of size {}",
+                        i + 1,
+                        attempt,
+                        chunk_size
+                    );
+                    match Self::download_chunk_with_retry(
+                        &client,
+                        &server_url,
+                        chunk_size,
+                        i + 1,
+                        attempt,
+                    )
+                    .await
+                    {
                         Ok(bytes) => return Ok(bytes),
                         Err(e) if attempt < 3 => {
-                            warn!("Download chunk {} attempt {} failed: {}, retrying...", i + 1, attempt, e);
-                            tokio::time::sleep(std::time::Duration::from_millis(100 * attempt as u64)).await;
+                            warn!(
+                                "Download chunk {} attempt {} failed: {}, retrying...",
+                                i + 1,
+                                attempt,
+                                e
+                            );
+                            tokio::time::sleep(std::time::Duration::from_millis(
+                                100 * attempt as u64,
+                            ))
+                            .await;
                             continue;
                         }
                         Err(e) => {
-                            warn!("Download chunk {} failed after {} attempts: {}", i + 1, attempt, e);
+                            warn!(
+                                "Download chunk {} failed after {} attempts: {}",
+                                i + 1,
+                                attempt,
+                                e
+                            );
                             return Err(e);
                         }
                     }
@@ -470,7 +499,7 @@ impl CustomBandwidthTester {
             duration,
         })
     }
-    
+
     async fn download_chunk_with_retry(
         client: &reqwest::Client,
         server_url: &str,
@@ -479,37 +508,60 @@ impl CustomBandwidthTester {
         attempt: usize,
     ) -> Result<usize> {
         let url = format!("{server_url}/__down?bytes={chunk_size}");
-        
+
         match client.get(&url).send().await {
             Ok(response) => {
-                debug!("Download chunk {} attempt {} response status: {}", chunk_id, attempt, response.status());
-                
+                debug!(
+                    "Download chunk {} attempt {} response status: {}",
+                    chunk_id,
+                    attempt,
+                    response.status()
+                );
+
                 if !response.status().is_success() {
                     let status = response.status();
                     // Read response body for error details
                     match response.text().await {
                         Ok(body) => {
-                            return Err(anyhow::anyhow!("Download chunk {} failed with status: {}, body: {}", chunk_id, status, body));
+                            return Err(anyhow::anyhow!(
+                                "Download chunk {} failed with status: {}, body: {}",
+                                chunk_id,
+                                status,
+                                body
+                            ));
                         }
                         Err(_) => {
-                            return Err(anyhow::anyhow!("Download chunk {} failed with status: {}", chunk_id, status));
+                            return Err(anyhow::anyhow!(
+                                "Download chunk {} failed with status: {}",
+                                chunk_id,
+                                status
+                            ));
                         }
                     }
                 }
-                
+
                 match response.bytes().await {
                     Ok(bytes) => {
-                        debug!("Download chunk {} attempt {} successfully received {} bytes", chunk_id, attempt, bytes.len());
+                        debug!(
+                            "Download chunk {} attempt {} successfully received {} bytes",
+                            chunk_id,
+                            attempt,
+                            bytes.len()
+                        );
                         Ok(bytes.len())
                     }
-                    Err(e) => {
-                        Err(anyhow::anyhow!("Download chunk {} failed to decode response body: {}", chunk_id, e))
-                    }
+                    Err(e) => Err(anyhow::anyhow!(
+                        "Download chunk {} failed to decode response body: {}",
+                        chunk_id,
+                        e
+                    )),
                 }
             }
-            Err(e) => {
-                Err(anyhow::anyhow!("Download chunk {} request failed: {}", chunk_id, e))
-            }
+            Err(e) => Err(anyhow::anyhow!(
+                "Download chunk {} request failed: {}",
+                chunk_id,
+                e
+            )),
         }
     }
 
@@ -546,11 +598,11 @@ impl CustomBandwidthTester {
                     ));
                 }
                 Err(body_err) => {
-                    warn!("Upload failed with status {} and couldn't read body: {}", status, body_err);
-                    return Err(anyhow::anyhow!(
-                        "Upload failed with status: {}",
-                        status
-                    ));
+                    warn!(
+                        "Upload failed with status {} and couldn't read body: {}",
+                        status, body_err
+                    );
+                    return Err(anyhow::anyhow!("Upload failed with status: {}", status));
                 }
             }
         }

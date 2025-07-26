@@ -134,10 +134,7 @@ impl BandwidthTester {
                     ));
                 }
                 Err(_) => {
-                    return Err(anyhow::anyhow!(
-                        "Upload failed with status: {}",
-                        status
-                    ));
+                    return Err(anyhow::anyhow!("Upload failed with status: {}", status));
                 }
             }
         }
@@ -164,13 +161,16 @@ impl BandwidthTester {
         let response = client.get(&url).await?;
         debug!("Download chunk response status: {}", response.status());
         debug!("Download chunk response headers: {:?}", response.headers());
-        
+
         if !response.status().is_success() {
             let status = response.status();
             // Try to read response body for error details
             match response.text().await {
                 Ok(body) => {
-                    debug!("Download chunk failed with status {}, body: {}", status, body);
+                    debug!(
+                        "Download chunk failed with status {}, body: {}",
+                        status, body
+                    );
                     return Err(anyhow::anyhow!(
                         "Download chunk failed with status: {}, body: {}",
                         status,
@@ -193,7 +193,10 @@ impl BandwidthTester {
             }
             Err(e) => {
                 debug!("Download chunk failed to decode response body: {}", e);
-                Err(anyhow::anyhow!("Download chunk failed to decode response body: {}", e))
+                Err(anyhow::anyhow!(
+                    "Download chunk failed to decode response body: {}",
+                    e
+                ))
             }
         }
     }
