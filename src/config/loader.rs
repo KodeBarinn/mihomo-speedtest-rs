@@ -295,9 +295,11 @@ impl ConfigLoader {
                 return Err(anyhow::anyhow!("Invalid auth format in Shadowsocks URL"));
             };
 
-            let mut config = ProxyParameters::default();
-            config.cipher = Some(cipher);
-            config.password = Some(password);
+            let config = ProxyParameters {
+                cipher: Some(cipher),
+                password: Some(password),
+                ..Default::default()
+            };
 
             Ok(ProxyConfig {
                 name,
@@ -350,10 +352,12 @@ impl ConfigLoader {
                 return Err(anyhow::anyhow!("Missing port in Trojan URL"));
             };
 
-            let mut config = ProxyParameters::default();
-            config.password = Some(password);
-            config.tls = Some(true); // Trojan always uses TLS
-            config.skip_cert_verify = Some(true); // Common default for testing
+            let config = ProxyParameters {
+                password: Some(password),
+                tls: Some(true),              // Trojan always uses TLS
+                skip_cert_verify: Some(true), // Common default for testing
+                ..Default::default()
+            };
 
             Ok(ProxyConfig {
                 name,
@@ -406,8 +410,10 @@ impl ConfigLoader {
             .ok_or_else(|| anyhow::anyhow!("Missing UUID in VMess config"))?
             .to_string();
 
-        let mut config = ProxyParameters::default();
-        config.uuid = Some(uuid);
+        let mut config = ProxyParameters {
+            uuid: Some(uuid),
+            ..Default::default()
+        };
 
         if let Some(security) = vmess_config.get("scy").and_then(|v| v.as_str()) {
             config.security = Some(security.to_string());
