@@ -44,8 +44,11 @@ impl Default for SpeedTestConfig {
 /// Result of a speed test for a single proxy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpeedTestResult {
+    pub schema_version: u32,
     pub proxy_name: String,
     pub proxy_type: crate::config::ProxyType,
+    pub status: SpeedTestStatus,
+    pub skip_reason: Option<String>,
     pub latency: Option<Duration>,
     pub jitter: Option<Duration>,
     pub packet_loss: f64,
@@ -57,12 +60,25 @@ pub struct SpeedTestResult {
     pub timestamp: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SpeedTestStatus {
+    Success,
+    Failed,
+    Skipped,
+}
+
 impl SpeedTestResult {
+    pub const SCHEMA_VERSION: u32 = 2;
+
     /// Create a new failed result
     pub fn failed(proxy_name: String, proxy_type: crate::config::ProxyType, error: String) -> Self {
         Self {
+            schema_version: Self::SCHEMA_VERSION,
             proxy_name,
             proxy_type,
+            status: SpeedTestStatus::Failed,
+            skip_reason: None,
             latency: None,
             jitter: None,
             packet_loss: 100.0,
@@ -71,6 +87,29 @@ impl SpeedTestResult {
             download_time: None,
             upload_time: None,
             error: Some(error),
+            timestamp: Utc::now(),
+        }
+    }
+
+    pub fn skipped(
+        proxy_name: String,
+        proxy_type: crate::config::ProxyType,
+        skip_reason: String,
+    ) -> Self {
+        Self {
+            schema_version: Self::SCHEMA_VERSION,
+            proxy_name,
+            proxy_type,
+            status: SpeedTestStatus::Skipped,
+            skip_reason: Some(skip_reason),
+            latency: None,
+            jitter: None,
+            packet_loss: 0.0,
+            download_speed: 0.0,
+            upload_speed: 0.0,
+            download_time: None,
+            upload_time: None,
+            error: None,
             timestamp: Utc::now(),
         }
     }
@@ -105,7 +144,7 @@ impl SpeedTestResult {
 
     /// Check if the test was successful
     pub fn is_successful(&self) -> bool {
-        self.error.is_none() && self.latency.is_some()
+        self.status == SpeedTestStatus::Success && self.error.is_none() && self.latency.is_some()
     }
 }
 
@@ -151,8 +190,11 @@ impl SpeedTester {
         // If fast mode is enabled, only test latency
         if self.config.fast_mode {
             return Ok(SpeedTestResult {
+                schema_version: SpeedTestResult::SCHEMA_VERSION,
                 proxy_name: proxy.name.clone(),
                 proxy_type: proxy.proxy_type.clone(),
+                status: SpeedTestStatus::Success,
+                skip_reason: None,
                 latency: Some(latency_result.avg_latency),
                 jitter: Some(latency_result.jitter),
                 packet_loss: latency_result.packet_loss,
@@ -200,8 +242,11 @@ impl SpeedTester {
         };
 
         Ok(SpeedTestResult {
+            schema_version: SpeedTestResult::SCHEMA_VERSION,
             proxy_name: proxy.name.clone(),
             proxy_type: proxy.proxy_type.clone(),
+            status: SpeedTestStatus::Success,
+            skip_reason: None,
             latency: Some(latency_result.avg_latency),
             jitter: Some(latency_result.jitter),
             packet_loss: latency_result.packet_loss,

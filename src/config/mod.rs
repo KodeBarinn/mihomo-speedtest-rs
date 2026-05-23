@@ -1,33 +1,32 @@
 pub mod loader;
 
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_yaml::{Mapping, Value};
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 
 pub use loader::ConfigLoader;
 
 /// Supported proxy types
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProxyType {
     Shadowsocks,
-    #[serde(rename = "ss")]
     ShadowsocksShort,
     VMess,
     VLESS,
     Trojan,
     Hysteria,
     Hysteria2,
-    #[serde(rename = "wireguard")]
     WireGuard,
     Socks5,
-    #[serde(rename = "socks")]
     Socks,
     Http,
     Https,
     // Add support for newer/custom proxy types
-    #[serde(rename = "anytls")]
     AnyTLS,
+    Unknown(String),
 }
 
 impl FromStr for ProxyType {
@@ -46,7 +45,7 @@ impl FromStr for ProxyType {
             "http" => Ok(ProxyType::Http),
             "https" => Ok(ProxyType::Https),
             "anytls" => Ok(ProxyType::AnyTLS),
-            _ => Err(format!("Unknown proxy type: {s}")),
+            _ => Ok(ProxyType::Unknown(s.to_string())),
         }
     }
 }
@@ -65,21 +64,181 @@ impl std::fmt::Display for ProxyType {
             ProxyType::Http => write!(f, "HTTP"),
             ProxyType::Https => write!(f, "HTTPS"),
             ProxyType::AnyTLS => write!(f, "AnyTLS"),
+            ProxyType::Unknown(proxy_type) => write!(f, "{proxy_type}"),
         }
     }
 }
 
+impl ProxyType {
+    pub fn as_mihomo_type(&self) -> &str {
+        match self {
+            ProxyType::Shadowsocks => "shadowsocks",
+            ProxyType::ShadowsocksShort => "ss",
+            ProxyType::VMess => "vmess",
+            ProxyType::VLESS => "vless",
+            ProxyType::Trojan => "trojan",
+            ProxyType::Hysteria => "hysteria",
+            ProxyType::Hysteria2 => "hysteria2",
+            ProxyType::WireGuard => "wireguard",
+            ProxyType::Socks5 => "socks5",
+            ProxyType::Socks => "socks",
+            ProxyType::Http => "http",
+            ProxyType::Https => "https",
+            ProxyType::AnyTLS => "anytls",
+            ProxyType::Unknown(proxy_type) => proxy_type.as_str(),
+        }
+    }
+
+    pub fn supports_standard_mode(&self) -> bool {
+        matches!(
+            self,
+            ProxyType::Http | ProxyType::Https | ProxyType::Socks5 | ProxyType::Socks
+        )
+    }
+}
+
+impl Serialize for ProxyType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_mihomo_type())
+    }
+}
+
+impl<'de> Deserialize<'de> for ProxyType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ProxyTypeVisitor;
+
+        impl Visitor<'_> for ProxyTypeVisitor {
+            type Value = ProxyType;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a proxy type string")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                value.parse().map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_str(ProxyTypeVisitor)
+    }
+}
+
 /// Main proxy configuration structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ProxyConfig {
     pub name: String,
-    #[serde(rename = "type")]
     pub proxy_type: ProxyType,
     pub server: String,
-    #[serde(deserialize_with = "deserialize_port")]
     pub port: u16,
-    #[serde(flatten)]
     pub config: ProxyParameters,
+    raw: Option<Mapping>,
+}
+
+impl ProxyConfig {
+    pub fn new(
+        name: String,
+        proxy_type: ProxyType,
+        server: String,
+        port: u16,
+        config: ProxyParameters,
+    ) -> Self {
+        Self {
+            name,
+            proxy_type,
+            server,
+            port,
+            config,
+            raw: None,
+        }
+    }
+
+    pub fn raw_mapping(&self) -> Mapping {
+        let mut mapping = if let Some(raw) = &self.raw {
+            raw.clone()
+        } else {
+            match serde_yaml::to_value(&self.config) {
+                Ok(Value::Mapping(mapping)) => mapping,
+                _ => Mapping::new(),
+            }
+        };
+
+        mapping.insert(
+            Value::String("name".to_string()),
+            Value::String(self.name.clone()),
+        );
+        let type_key = Value::String("type".to_string());
+        if !mapping.contains_key(&type_key) {
+            mapping.insert(
+                type_key,
+                Value::String(self.proxy_type.as_mihomo_type().to_string()),
+            );
+        }
+
+        if !self.server.is_empty() {
+            mapping.insert(
+                Value::String("server".to_string()),
+                Value::String(self.server.clone()),
+            );
+        }
+
+        if self.port != 0 {
+            mapping.insert(
+                Value::String("port".to_string()),
+                Value::Number(self.port.into()),
+            );
+        }
+
+        mapping
+    }
+}
+
+impl Serialize for ProxyConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.raw_mapping().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ProxyConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = Mapping::deserialize(deserializer)?;
+        let name = value_as_string(raw.get(Value::String("name".to_string())))
+            .unwrap_or_else(|| "Unnamed".to_string());
+        let proxy_type = value_as_string(raw.get(Value::String("type".to_string())))
+            .unwrap_or_else(|| "unknown".to_string())
+            .parse()
+            .map_err(de::Error::custom)?;
+        let server =
+            value_as_string(raw.get(Value::String("server".to_string()))).unwrap_or_default();
+        let port = match raw.get(Value::String("port".to_string())) {
+            Some(value) => parse_port_value(value).map_err(de::Error::custom)?,
+            None => 0,
+        };
+        let config = serde_yaml::from_value(Value::Mapping(raw.clone())).unwrap_or_default();
+
+        Ok(Self {
+            name,
+            proxy_type,
+            server,
+            port,
+            config,
+            raw: Some(raw),
+        })
+    }
 }
 
 /// Proxy parameters that vary by protocol type
@@ -193,55 +352,32 @@ pub struct ClashConfig {
     pub other: HashMap<String, serde_yaml::Value>,
 }
 
-/// Custom deserializer for port field that can be either string or number
-fn deserialize_port<'de, D>(deserializer: D) -> Result<u16, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::{self, Visitor};
-    use std::fmt;
-
-    struct PortVisitor;
-
-    impl<'de> Visitor<'de> for PortVisitor {
-        type Value = u16;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a port number as string or integer")
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            v.parse::<u16>()
-                .map_err(|_| de::Error::custom(format!("invalid port string: {v}")))
-        }
-
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            if v >= 0 && v <= u16::MAX as i64 {
-                Ok(v as u16)
-            } else {
-                Err(de::Error::custom(format!("port out of range: {v}")))
-            }
-        }
-
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            if v <= u16::MAX as u64 {
-                Ok(v as u16)
-            } else {
-                Err(de::Error::custom(format!("port out of range: {v}")))
-            }
-        }
+fn value_as_string(value: Option<&Value>) -> Option<String> {
+    match value {
+        Some(Value::String(value)) => Some(value.clone()),
+        Some(Value::Number(value)) => Some(value.to_string()),
+        Some(Value::Bool(value)) => Some(value.to_string()),
+        _ => None,
     }
+}
 
-    deserializer.deserialize_any(PortVisitor)
+fn parse_port_value(value: &Value) -> Result<u16, String> {
+    match value {
+        Value::Number(number) => {
+            let port = number
+                .as_u64()
+                .ok_or_else(|| format!("invalid port number: {number}"))?;
+            if port <= u16::MAX as u64 {
+                Ok(port as u16)
+            } else {
+                Err(format!("port out of range: {port}"))
+            }
+        }
+        Value::String(value) => value
+            .parse::<u16>()
+            .map_err(|_| format!("invalid port string: {value}")),
+        _ => Err("port must be a string or number".to_string()),
+    }
 }
 
 /// Custom deserializer for fields that can be either string or number
@@ -305,4 +441,83 @@ where
     }
 
     deserializer.deserialize_any(StringOrNumberVisitor)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loads_unknown_proxy_type_and_preserves_raw_fields() {
+        let yaml = r#"
+proxies:
+  - name: Mystery
+    type: future-protocol
+    server: example.com
+    port: "443"
+    custom-field:
+      enabled: true
+      value: 7
+"#;
+
+        let config: ClashConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.proxies.len(), 1);
+        assert_eq!(
+            config.proxies[0].proxy_type,
+            ProxyType::Unknown("future-protocol".to_string())
+        );
+
+        let serialized = serde_yaml::to_value(&config.proxies[0]).unwrap();
+        let mapping = serialized.as_mapping().unwrap();
+        assert_eq!(
+            mapping.get(Value::String("type".to_string())).unwrap(),
+            &Value::String("future-protocol".to_string())
+        );
+        assert!(
+            mapping
+                .get(Value::String("custom-field".to_string()))
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn round_trips_modern_mihomo_proxy_types_without_protocol_whitelist() {
+        let yaml = r#"
+proxies:
+  - name: hy2
+    type: hysteria2
+    server: hy.example.com
+    port: 443
+    password: secret
+  - name: any
+    type: anytls
+    server: any.example.com
+    port: 443
+    password: secret
+  - name: vless
+    type: vless
+    server: vless.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000000
+    flow: xtls-rprx-vision
+  - name: tuic
+    type: tuic
+    server: tuic.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000000
+    password: secret
+  - name: wg
+    type: wireguard
+    server: wg.example.com
+    port: 51820
+    private-key: abc
+"#;
+
+        let config: ClashConfig = serde_yaml::from_str(yaml).unwrap();
+        let rendered = serde_yaml::to_string(&config).unwrap();
+
+        for proxy_type in ["hysteria2", "anytls", "vless", "tuic", "wireguard"] {
+            assert!(rendered.contains(&format!("type: {proxy_type}")));
+        }
+    }
 }

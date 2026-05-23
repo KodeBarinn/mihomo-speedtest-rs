@@ -87,11 +87,11 @@ impl ConfigLoader {
     /// Parse configuration content
     fn parse_config(&self, content: &str) -> Result<Vec<ProxyConfig>> {
         // First try to decode as base64 (common for subscriptions)
-        if let Ok(decoded_bytes) = general_purpose::STANDARD.decode(content.trim()) {
-            if let Ok(decoded_content) = String::from_utf8(decoded_bytes) {
-                debug!("Content appears to be base64 encoded, trying to parse decoded content");
-                return self.parse_decoded_content(&decoded_content);
-            }
+        if let Ok(decoded_bytes) = general_purpose::STANDARD.decode(content.trim())
+            && let Ok(decoded_content) = String::from_utf8(decoded_bytes)
+        {
+            debug!("Content appears to be base64 encoded, trying to parse decoded content");
+            return self.parse_decoded_content(&decoded_content);
         }
 
         // If not base64, try to parse directly
@@ -101,11 +101,11 @@ impl ConfigLoader {
     /// Parse decoded content (could be YAML, JSON, or proxy list)
     fn parse_decoded_content(&self, content: &str) -> Result<Vec<ProxyConfig>> {
         // Try YAML parsing with proxy extraction first
-        if let Ok(proxies) = self.extract_proxies_from_yaml(content) {
-            if !proxies.is_empty() {
-                debug!("Successfully extracted {} proxies from YAML", proxies.len());
-                return Ok(proxies);
-            }
+        if let Ok(proxies) = self.extract_proxies_from_yaml(content)
+            && !proxies.is_empty()
+        {
+            debug!("Successfully extracted {} proxies from YAML", proxies.len());
+            return Ok(proxies);
         }
 
         // Try full YAML structure parsing
@@ -211,13 +211,13 @@ impl ConfigLoader {
                 .parse()
                 .map_err(|_| anyhow::anyhow!("Invalid port"))?;
 
-            return Ok(ProxyConfig {
+            return Ok(ProxyConfig::new(
                 name,
                 proxy_type,
                 server,
                 port,
-                config: Default::default(),
-            });
+                Default::default(),
+            ));
         }
 
         Err(anyhow::anyhow!("Invalid proxy line format"))
@@ -301,13 +301,13 @@ impl ConfigLoader {
                 ..Default::default()
             };
 
-            Ok(ProxyConfig {
+            Ok(ProxyConfig::new(
                 name,
-                proxy_type: ProxyType::Shadowsocks,
+                ProxyType::Shadowsocks,
                 server,
                 port,
                 config,
-            })
+            ))
         } else {
             Err(anyhow::anyhow!("Invalid Shadowsocks URL format"))
         }
@@ -359,13 +359,13 @@ impl ConfigLoader {
                 ..Default::default()
             };
 
-            Ok(ProxyConfig {
+            Ok(ProxyConfig::new(
                 name,
-                proxy_type: ProxyType::Trojan,
+                ProxyType::Trojan,
                 server,
                 port,
                 config,
-            })
+            ))
         } else {
             Err(anyhow::anyhow!("Invalid Trojan URL format"))
         }
@@ -431,13 +431,13 @@ impl ConfigLoader {
             config.tls = Some(tls == "tls");
         }
 
-        Ok(ProxyConfig {
+        Ok(ProxyConfig::new(
             name,
-            proxy_type: ProxyType::VMess,
+            ProxyType::VMess,
             server,
             port,
             config,
-        })
+        ))
     }
 
     /// Parse VLESS URL format
@@ -483,20 +483,20 @@ impl ConfigLoader {
 
         let mut config = ProxyParameters::default();
 
-        if let Some(auth_part) = auth {
-            if let Some(colon_pos) = auth_part.find(':') {
-                config.username = Some(auth_part[..colon_pos].to_string());
-                config.password = Some(auth_part[colon_pos + 1..].to_string());
-            }
+        if let Some(auth_part) = auth
+            && let Some(colon_pos) = auth_part.find(':')
+        {
+            config.username = Some(auth_part[..colon_pos].to_string());
+            config.password = Some(auth_part[colon_pos + 1..].to_string());
         }
 
-        Ok(ProxyConfig {
-            name: format!("SOCKS5-{server}"),
-            proxy_type: ProxyType::Socks5,
+        Ok(ProxyConfig::new(
+            format!("SOCKS5-{server}"),
+            ProxyType::Socks5,
             server,
             port,
             config,
-        })
+        ))
     }
 }
 

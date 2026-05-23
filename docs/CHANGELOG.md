@@ -5,6 +5,38 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.3] - 2026-05-24
+
+### ✨ 真实协议透明测速
+
+#### 🔥 默认 mihomo 真实测速
+- 默认测试路径改为 mihomo 真实代理测速，旧直接测试模式改为显式 `--standard`
+- `--use-mihomo` 作为兼容参数保留
+- 标准模式仅用于 HTTP/HTTPS/SOCKS 调试，其他协议不再以直连结果伪装成真实代理测速
+
+#### 🌐 协议透明配置
+- Mihomo/Clash YAML 中的 `proxies[]` 原样保留并交给 mihomo 验证
+- 未知 `type` 不再导致 Rust 侧反序列化失败
+- 覆盖 `hysteria2`、`anytls`、`vless`、`tuic`、`wireguard` 等现代 mihomo 协议的 round-trip 场景
+
+#### 🧱 隔离 sandbox
+- 新增独立测速 sandbox：随机端口、随机 controller secret、临时目录和进程生命周期管理
+- mihomo 仅监听 `127.0.0.1`，不启用 TUN、redir、tproxy 或 DNS 接管，不修改系统代理
+- 生成 selector-only 最小配置，移除 `url-test` 自动组，避免后台探测污染测速结果
+- 异步消费 mihomo 子进程输出，错误返回和 Drop 时清理进程与临时目录
+
+#### ⚡ 并发 lane 模式
+- 默认使用单 mihomo 进程顺序切换 selector，优先稳定性
+- 新增 `--isolated-lanes --max-concurrent N`，每个 lane 使用独立 mihomo 进程和端口并发测速
+
+#### 📊 结果 schema
+- JSON 结果增加 `schema_version`、`status`、`skip_reason` 字段
+- 协议未知不再作为跳过原因；mihomo 拒绝配置、启动失败、端口不可用和请求失败等作为运行时失败输出
+
+### 🛠️ 发布流程
+- Release workflow 增加跨平台二进制构建并上传到 GitHub Release
+- 继续在 tag 发布时校验 Cargo 版本与 tag 一致
+
 ## [1.1.2] - 2025-07-26
 
 ### ✨ 用户体验改进

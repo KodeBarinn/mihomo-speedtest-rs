@@ -1,7 +1,7 @@
 use clap::Parser;
 use mihomo_speedtest_rs::{
     cli::{Cli, progress::SpeedTestProgress},
-    config::ConfigLoader,
+    config::{ConfigLoader, ProxyConfig},
     core::{MihomoRunner, RealSpeedTester, SpeedTester},
     output::{ConfigExporter, ResultFormatter},
 };
@@ -123,21 +123,34 @@ async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
 
     // Test proxies
     info!("🧪 Starting speed tests for {} proxies", proxies.len());
-    let results = if args.use_mihomo {
+    let results = if !args.standard {
         // Use mihomo for real proxy testing
         info!("🔧 Using mihomo process for real proxy testing");
 
-        let mihomo_runner = MihomoRunner::new(
-            &args.mihomo_config_dir,
-            args.mihomo_binary.as_ref(),
-            args.mihomo_api_port,
-            args.mihomo_proxy_port,
-        )?;
+        if args.isolated_lanes {
+            RealSpeedTester::test_proxies_isolated_lanes(
+                proxies.clone(),
+                config,
+                args.mihomo_config_dir.clone(),
+                args.mihomo_binary.clone(),
+                args.max_concurrent,
+            )
+            .await?
+        } else {
+            let mihomo_runner = MihomoRunner::new(
+                &args.mihomo_config_dir,
+                args.mihomo_binary.as_ref(),
+                args.mihomo_api_port,
+                args.mihomo_proxy_port,
+            )?;
 
-        let mut real_tester = RealSpeedTester::new(mihomo_runner, config);
-        real_tester.test_proxies(&proxies).await?
+            let mut real_tester = RealSpeedTester::new(mihomo_runner, config);
+            real_tester.test_proxies(&proxies).await?
+        }
     } else {
         // Use original direct testing method
+        warn!("Using standard mode: only HTTP/HTTPS/SOCKS proxies can be tested without mihomo");
+        warn_standard_mode_unsupported(&proxies);
         let tester = SpeedTester::new(config);
 
         if args.max_concurrent > 1 {
@@ -167,17 +180,17 @@ async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
 
     // Filter results based on performance criteria
     let filtered_results: Vec<_> = results
-        .into_iter()
+        .iter()
         .filter(|result| {
             if !result.is_successful() {
                 return false;
             }
 
             // Check latency
-            if let Some(latency) = result.latency {
-                if latency > args.max_latency {
-                    return false;
-                }
+            if let Some(latency) = result.latency
+                && latency > args.max_latency
+            {
+                return false;
             }
 
             // Check download speed (convert MB/s to bytes/s)
@@ -194,6 +207,7 @@ async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
 
             true
         })
+        .cloned()
         .collect();
 
     info!(
@@ -203,11 +217,11 @@ async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
 
     // Format and display results
     let formatter = ResultFormatter::new(args.json_output, !args.json_output);
-    let output = formatter.format_results(&filtered_results);
+    let output = formatter.format_results(&results);
     println!("{output}");
 
     if !args.json_output {
-        println!("{}", formatter.format_summary(&filtered_results));
+        println!("{}", formatter.format_summary(&results));
     }
 
     // Export results if requested
@@ -228,4 +242,15 @@ async fn run(args: Cli, config_paths: &str) -> mihomo_speedtest_rs::Result<()> {
 
     info!("🎉 All tasks completed successfully!");
     Ok(())
+}
+
+fn warn_standard_mode_unsupported(proxies: &[ProxyConfig]) {
+    for proxy in proxies {
+        if !proxy.proxy_type.supports_standard_mode() {
+            warn!(
+                "Proxy '{}' ({}) is not supported by standard mode and will fail unless tested with mihomo real mode",
+                proxy.name, proxy.proxy_type
+            );
+        }
+    }
 }

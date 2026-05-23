@@ -59,113 +59,15 @@ impl ProxyClient {
 
                 client_builder.build()?
             }
-            ProxyType::Trojan => {
-                debug!(
-                    "Trojan proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
+            _ => {
                 warn!(
-                    "Trojan protocol requires special client implementation - using direct connection for basic connectivity test"
+                    "Standard mode only supports HTTP/HTTPS/SOCKS proxy forwarding; {} requires mihomo real mode",
+                    proxy_config.proxy_type
                 );
-                // For now, fall back to direct connection but log the configuration
-                debug!(
-                    "Trojan config - password: {:?}, network: {:?}, skip-cert-verify: {:?}",
-                    proxy_config.config.password.is_some(),
-                    proxy_config.config.network,
-                    proxy_config.config.skip_cert_verify
-                );
-                client_builder.build()?
-            }
-            ProxyType::Hysteria | ProxyType::Hysteria2 => {
-                debug!(
-                    "Hysteria2 proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
-                warn!(
-                    "Hysteria2 protocol requires special client implementation - using direct connection for basic connectivity test"
-                );
-                // Log the configuration parameters
-                debug!(
-                    "Hysteria2 config - password: {:?}, ports: {:?}, skip-cert-verify: {:?}",
-                    proxy_config.config.password.is_some(),
-                    proxy_config.config.ports,
-                    proxy_config.config.skip_cert_verify
-                );
-                client_builder.build()?
-            }
-            ProxyType::AnyTLS => {
-                debug!(
-                    "AnyTLS proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
-                warn!(
-                    "AnyTLS protocol requires special client implementation - using direct connection for basic connectivity test"
-                );
-                // Log the configuration parameters
-                debug!(
-                    "AnyTLS config - password: {:?}, client-fingerprint: {:?}, udp: {:?}, tfo: {:?}",
-                    proxy_config.config.password.is_some(),
-                    proxy_config.config.client_fingerprint,
-                    proxy_config.config.udp,
-                    proxy_config.config.tfo
-                );
-                client_builder.build()?
-            }
-            ProxyType::Shadowsocks | ProxyType::ShadowsocksShort => {
-                debug!(
-                    "Shadowsocks proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
-                warn!(
-                    "Shadowsocks protocol requires special client implementation - using direct connection for basic connectivity test"
-                );
-                debug!(
-                    "Shadowsocks config - cipher: {:?}, password: {:?}",
-                    proxy_config.config.cipher,
-                    proxy_config.config.password.is_some()
-                );
-                client_builder.build()?
-            }
-            ProxyType::VMess => {
-                debug!(
-                    "VMess proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
-                warn!(
-                    "VMess protocol requires special client implementation - using direct connection for basic connectivity test"
-                );
-                debug!(
-                    "VMess config - uuid: {:?}, security: {:?}, alter_id: {:?}",
-                    proxy_config.config.uuid.is_some(),
-                    proxy_config.config.security,
-                    proxy_config.config.alter_id
-                );
-                client_builder.build()?
-            }
-            ProxyType::VLESS => {
-                debug!(
-                    "VLESS proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
-                warn!(
-                    "VLESS protocol requires special client implementation - using direct connection for basic connectivity test"
-                );
-                debug!(
-                    "VLESS config - uuid: {:?}, flow: {:?}",
-                    proxy_config.config.uuid.is_some(),
-                    proxy_config.config.flow
-                );
-                client_builder.build()?
-            }
-            ProxyType::WireGuard => {
-                debug!(
-                    "WireGuard proxy detected: {}:{}",
-                    proxy_config.server, proxy_config.port
-                );
-                warn!(
-                    "WireGuard protocol requires special client implementation - using direct connection for basic connectivity test"
-                );
-                client_builder.build()?
+                return Err(anyhow::anyhow!(
+                    "standard mode cannot test {} without mihomo",
+                    proxy_config.proxy_type
+                ));
             }
         };
 

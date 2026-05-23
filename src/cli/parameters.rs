@@ -81,7 +81,7 @@ impl ParameterTable {
         description: &str,
     ) {
         let format_duration = |d: Duration| {
-            if d.as_millis() % 1000 == 0 {
+            if d.as_millis().is_multiple_of(1000) {
                 format!("{}s", d.as_secs())
             } else {
                 format!("{}ms", d.as_millis())
@@ -128,7 +128,7 @@ impl ParameterTable {
         description: &str,
     ) {
         let format_duration = |d: Duration| {
-            if d.as_millis() % 1000 == 0 {
+            if d.as_millis().is_multiple_of(1000) {
                 format!("{}s", d.as_secs())
             } else {
                 format!("{}ms", d.as_millis())

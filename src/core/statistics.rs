@@ -49,7 +49,7 @@ impl StatisticalAnalysis {
         values.sort();
         let len = values.len();
 
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             let mid1 = values[len / 2 - 1];
             let mid2 = values[len / 2];
             Some((mid1 + mid2) / 2)

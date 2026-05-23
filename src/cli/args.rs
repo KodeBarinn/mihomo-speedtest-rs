@@ -89,24 +89,32 @@ pub struct Cli {
     #[arg(long = "max-concurrent", default_value = "1")]
     pub max_concurrent: usize,
 
-    /// Use mihomo process for real proxy testing
+    /// Use mihomo process for real proxy testing (default; retained for compatibility)
     #[arg(long = "use-mihomo")]
     pub use_mihomo: bool,
+
+    /// Use legacy direct HTTP/SOCKS testing instead of mihomo real proxy testing
+    #[arg(long = "standard")]
+    pub standard: bool,
+
+    /// Use one isolated mihomo process per concurrent lane
+    #[arg(long = "isolated-lanes")]
+    pub isolated_lanes: bool,
 
     /// Path to mihomo binary (auto-detect if not specified)
     #[arg(long = "mihomo-binary")]
     pub mihomo_binary: Option<String>,
 
-    /// Mihomo API port
-    #[arg(long = "mihomo-api-port", default_value = "19090")]
+    /// Mihomo API port (0 selects a random free loopback port)
+    #[arg(long = "mihomo-api-port", default_value = "0")]
     pub mihomo_api_port: u16,
 
-    /// Mihomo proxy port  
-    #[arg(long = "mihomo-proxy-port", default_value = "17890")]
+    /// Mihomo proxy port (0 selects a random free loopback port)
+    #[arg(long = "mihomo-proxy-port", default_value = "0")]
     pub mihomo_proxy_port: u16,
 
-    /// Mihomo config directory
-    #[arg(long = "mihomo-config-dir", default_value = "./mihomo-temp")]
+    /// Base directory for mihomo temporary session directories
+    #[arg(long = "mihomo-config-dir", default_value = "")]
     pub mihomo_config_dir: String,
 
     /// Show author information
@@ -327,9 +335,23 @@ impl Cli {
         // Mihomo configuration
         table.add_bool_param(
             "use-mihomo",
-            false,
+            true,
             self.use_mihomo,
             "Use mihomo process for real proxy testing",
+        );
+
+        table.add_bool_param(
+            "standard",
+            false,
+            self.standard,
+            "Use legacy direct HTTP/SOCKS testing",
+        );
+
+        table.add_bool_param(
+            "isolated-lanes",
+            false,
+            self.isolated_lanes,
+            "Use isolated mihomo lane processes",
         );
 
         table.add_optional_string_param(
@@ -341,21 +363,21 @@ impl Cli {
 
         table.add_numeric_param(
             "mihomo-api-port",
-            19090_u16,
+            0_u16,
             self.mihomo_api_port,
             "Mihomo API port",
         );
 
         table.add_numeric_param(
             "mihomo-proxy-port",
-            17890_u16,
+            0_u16,
             self.mihomo_proxy_port,
             "Mihomo proxy port",
         );
 
         table.add_string_param(
             "mihomo-config-dir",
-            "./mihomo-temp",
+            "",
             &self.mihomo_config_dir,
             "Mihomo config directory",
         );

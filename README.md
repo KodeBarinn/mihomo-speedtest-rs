@@ -10,9 +10,9 @@
 
 - 🚀 **高性能**: 使用 Rust 和 Tokio 异步运行时，支持并发测试
 - 📊 **全面测试**: 延迟、抖动、丢包率、下载/上传速度测试
-- 🔥 **真实代理测试**: 支持通过 mihomo 进程进行真实的代理性能测试
+- 🔥 **真实代理测试**: 默认通过 mihomo 进程进行真实代理性能测试
 - 🔧 **多格式支持**: 支持 YAML、JSON 配置文件和各种订阅格式
-- 🌐 **协议支持**: Shadowsocks、VMess、Trojan、Hysteria、SOCKS5、HTTP 等
+- 🌐 **协议透明**: Mihomo/Clash YAML 中的代理描述原样交给 mihomo，支持 mihomo 当前支持的协议
 - 📈 **智能过滤**: 基于性能指标自动过滤节点
 - 💾 **结果导出**: 支持导出过滤后的配置文件和测试结果
 - 🎨 **美观输出**: 彩色表格和 JSON 格式输出
@@ -56,30 +56,31 @@ cargo run -- --help
 
 本工具提供两种测试模式：
 
-#### 1. 标准模式 (默认)
-- **HTTP/SOCKS5**: 真实代理测试
-- **其他协议**: 基础连通性测试（直连方式）
-- **特点**: 快速测试，获得基线性能指标
-
-#### 2. Mihomo 模式 (推荐)  
-- **所有协议**: 通过 mihomo 进程进行真实代理测试
+#### 1. Mihomo 模式 (默认，推荐)
+- **所有 mihomo 支持的协议**: 通过独立 mihomo 进程进行真实代理测试
 - **特点**: 获得真实用户体验的测试结果
+- **隔离性**: 仅监听 `127.0.0.1`，使用随机端口和临时目录，不启用 TUN/DNS 接管，不修改系统代理
 - **要求**: 需要安装 mihomo 二进制文件
+
+#### 2. 标准模式 (兼容调试)
+- **HTTP/SOCKS5**: 通过 Rust HTTP 客户端直接测试
+- **其他协议**: 不再伪装成真实代理测速；请使用默认 mihomo 模式
+- **启用方式**: 显式传入 `--standard`
 
 ### 基本用法
 
 ```bash
-# 标准模式测试
+# 默认真实代理测试
 mihomo-speedtest --config clash/config.yaml
 
-# 真实代理测试 (推荐)
-mihomo-speedtest --config clash/config.yaml --use-mihomo
+# 旧标准模式（仅 HTTP/SOCKS 调试）
+mihomo-speedtest --config clash/config.yaml --standard
 
 # 快速延迟测试
 mihomo-speedtest --config config.yaml --fast
 
-# 真实代理快速测试
-mihomo-speedtest --config config.yaml --use-mihomo --fast
+# 并发隔离 lane 测速
+mihomo-speedtest --config config.yaml --isolated-lanes --max-concurrent 4
 
 # 过滤高质量节点并导出
 mihomo-speedtest --config config.yaml \
@@ -107,16 +108,16 @@ sudo mv mihomo-darwin-amd64 /usr/local/bin/mihomo
 
 ```bash
 # 基本真实测试
-mihomo-speedtest --config config.yaml --use-mihomo --fast
+mihomo-speedtest --config config.yaml --fast
 
 # 自定义 mihomo 配置
-mihomo-speedtest --config config.yaml --use-mihomo \
+mihomo-speedtest --config config.yaml \
   --mihomo-binary /usr/local/bin/mihomo \
   --mihomo-api-port 9091 \
   --mihomo-proxy-port 7891
 
 # 测试订阅地址
-mihomo-speedtest --config https://example.com/subscription --use-mihomo
+mihomo-speedtest --config https://example.com/subscription
 ```
 
 ### 高级用法
@@ -214,11 +215,13 @@ mihomo-speedtest --config config.yaml --timeout 20 --max-latency 800
 
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
-| `--use-mihomo` | 启用 mihomo 真实代理测试 | `false` |
+| `--use-mihomo` | 兼容保留；mihomo 真实代理测试现在是默认行为 | `false` |
+| `--standard` | 启用旧标准模式（仅 HTTP/SOCKS 调试） | `false` |
+| `--isolated-lanes` | 使用每 lane 一个 mihomo 进程的隔离并发模式 | `false` |
 | `--mihomo-binary` | mihomo 二进制文件路径 | 自动检测 |
-| `--mihomo-api-port` | mihomo API 端口 | `19090` |
-| `--mihomo-proxy-port` | mihomo 代理端口 | `17890` |
-| `--mihomo-config-dir` | mihomo 配置目录 | `./mihomo-temp` |
+| `--mihomo-api-port` | mihomo API 端口，`0` 表示随机空闲端口 | `0` |
+| `--mihomo-proxy-port` | mihomo 代理端口，`0` 表示随机空闲端口 | `0` |
+| `--mihomo-config-dir` | mihomo 临时会话目录的父目录 | 系统临时目录 |
 
 ## API 文档
 
@@ -312,7 +315,7 @@ async fn main() -> anyhow::Result<()> {
 - ✅ **HTTP/HTTPS** - 完整的代理转发和性能测试
 - ✅ **SOCKS5** - 完整的代理转发和性能测试
 
-> **推荐**: 使用 `--use-mihomo` 选项获得所有协议的真实用户体验测试结果。
+> **推荐**: 使用默认 mihomo 模式获得所有协议的真实用户体验测试结果；只有兼容调试时才使用 `--standard`。
 
 ## 支持的配置格式
 

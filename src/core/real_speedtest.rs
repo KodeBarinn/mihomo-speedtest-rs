@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::config::ProxyConfig;
 use crate::core::mihomo_runner::MihomoRunner;
-use crate::core::{SpeedTestConfig, SpeedTestResult};
+use crate::core::{SpeedTestConfig, SpeedTestResult, SpeedTestStatus};
 use chrono::Utc;
 use std::time::Duration;
 use tracing::{debug, info, warn};
@@ -26,8 +26,21 @@ impl RealSpeedTester {
         info!("Starting real proxy speed tests with mihomo process");
 
         // Generate and start mihomo with configuration
-        let mihomo_config = self.mihomo_runner.generate_config(proxies)?;
-        self.mihomo_runner.start(&mihomo_config).await?;
+        let mihomo_config = match self.mihomo_runner.generate_config(proxies) {
+            Ok(config) => config,
+            Err(e) => {
+                return Ok(failed_results(
+                    proxies,
+                    format!("mihomo config rejected: {e}"),
+                ));
+            }
+        };
+        if let Err(e) = self.mihomo_runner.start(&mihomo_config).await {
+            return Ok(failed_results(
+                proxies,
+                format!("mihomo startup failed: {e}"),
+            ));
+        }
 
         let mut results = Vec::new();
 
@@ -45,6 +58,37 @@ impl RealSpeedTester {
         Ok(results)
     }
 
+    /// Test proxies with one isolated mihomo process per lane.
+    pub async fn test_proxies_isolated_lanes<P: AsRef<std::path::Path> + Clone + Send + 'static>(
+        proxies: Vec<ProxyConfig>,
+        config: SpeedTestConfig,
+        config_dir: P,
+        mihomo_binary: Option<P>,
+        max_concurrent: usize,
+    ) -> Result<Vec<SpeedTestResult>> {
+        use futures::stream::{StreamExt, iter};
+
+        let concurrency = std::cmp::max(1, max_concurrent);
+        let results = iter(proxies)
+            .map(|proxy| {
+                let config = config.clone();
+                let config_dir = config_dir.clone();
+                let mihomo_binary = mihomo_binary.clone();
+
+                async move {
+                    let runner = MihomoRunner::new(config_dir, mihomo_binary, 0, 0)?;
+                    let mut tester = RealSpeedTester::new(runner, config);
+                    let mut results = tester.test_proxies(&[proxy]).await?;
+                    Ok::<_, anyhow::Error>(results.pop().expect("single proxy result"))
+                }
+            })
+            .buffer_unordered(concurrency)
+            .collect::<Vec<_>>()
+            .await;
+
+        results.into_iter().collect()
+    }
+
     /// Test a single proxy through mihomo
     async fn test_single_proxy(&mut self, proxy: &ProxyConfig) -> SpeedTestResult {
         let start_time = Utc::now();
@@ -52,8 +96,11 @@ impl RealSpeedTester {
         // Switch mihomo to use this proxy
         if let Err(e) = self.mihomo_runner.switch_proxy(&proxy.name).await {
             return SpeedTestResult {
+                schema_version: SpeedTestResult::SCHEMA_VERSION,
                 proxy_name: proxy.name.clone(),
                 proxy_type: proxy.proxy_type.clone(),
+                status: SpeedTestStatus::Failed,
+                skip_reason: None,
                 latency: None,
                 jitter: None,
                 packet_loss: 1.0,
@@ -74,8 +121,11 @@ impl RealSpeedTester {
             Ok(result) => result,
             Err(e) => {
                 return SpeedTestResult {
+                    schema_version: SpeedTestResult::SCHEMA_VERSION,
                     proxy_name: proxy.name.clone(),
                     proxy_type: proxy.proxy_type.clone(),
+                    status: SpeedTestStatus::Failed,
+                    skip_reason: None,
                     latency: None,
                     jitter: None,
                     packet_loss: 1.0,
@@ -90,35 +140,40 @@ impl RealSpeedTester {
         };
 
         // Check if latency exceeds threshold
-        if let Some(max_latency) = self.config.max_latency {
-            if let Some(avg_latency) = latency {
-                if avg_latency > max_latency {
-                    return SpeedTestResult {
-                        proxy_name: proxy.name.clone(),
-                        proxy_type: proxy.proxy_type.clone(),
-                        latency,
-                        jitter,
-                        packet_loss,
-                        download_speed: 0.0,
-                        upload_speed: 0.0,
-                        download_time: None,
-                        upload_time: None,
-                        error: Some(format!(
-                            "Latency {} exceeds threshold {:?}",
-                            avg_latency.as_millis(),
-                            max_latency.as_millis()
-                        )),
-                        timestamp: start_time,
-                    };
-                }
-            }
+        if let Some(max_latency) = self.config.max_latency
+            && let Some(avg_latency) = latency
+            && avg_latency > max_latency
+        {
+            return SpeedTestResult {
+                schema_version: SpeedTestResult::SCHEMA_VERSION,
+                proxy_name: proxy.name.clone(),
+                proxy_type: proxy.proxy_type.clone(),
+                status: SpeedTestStatus::Failed,
+                skip_reason: None,
+                latency,
+                jitter,
+                packet_loss,
+                download_speed: 0.0,
+                upload_speed: 0.0,
+                download_time: None,
+                upload_time: None,
+                error: Some(format!(
+                    "Latency {} exceeds threshold {:?}",
+                    avg_latency.as_millis(),
+                    max_latency.as_millis()
+                )),
+                timestamp: start_time,
+            };
         }
 
         // If fast mode is enabled, skip bandwidth tests
         if self.config.fast_mode {
             return SpeedTestResult {
+                schema_version: SpeedTestResult::SCHEMA_VERSION,
                 proxy_name: proxy.name.clone(),
                 proxy_type: proxy.proxy_type.clone(),
+                status: SpeedTestStatus::Success,
+                skip_reason: None,
                 latency,
                 jitter,
                 packet_loss,
@@ -136,8 +191,15 @@ impl RealSpeedTester {
             self.test_bandwidth_through_mihomo().await;
 
         SpeedTestResult {
+            schema_version: SpeedTestResult::SCHEMA_VERSION,
             proxy_name: proxy.name.clone(),
             proxy_type: proxy.proxy_type.clone(),
+            status: if bandwidth_error.is_none() {
+                SpeedTestStatus::Success
+            } else {
+                SpeedTestStatus::Failed
+            },
+            skip_reason: None,
             latency,
             jitter,
             packet_loss,
@@ -186,13 +248,13 @@ impl RealSpeedTester {
 
         // Create a simple proxy config for the latency tester
         // We don't need the actual proxy details since we're going through mihomo
-        let _dummy_proxy = ProxyConfig {
-            name: "mihomo-proxy".to_string(),
-            proxy_type: crate::config::ProxyType::Http,
-            server: "127.0.0.1".to_string(),
-            port: self.mihomo_runner.proxy_port(),
-            config: Default::default(),
-        };
+        let _dummy_proxy = ProxyConfig::new(
+            "mihomo-proxy".to_string(),
+            crate::config::ProxyType::Http,
+            "127.0.0.1".to_string(),
+            self.mihomo_runner.proxy_port(),
+            Default::default(),
+        );
 
         // Create custom latency tester that uses the mihomo proxy client
         let latency_tester = CustomLatencyTester::new(proxy_client, self.config.server_url.clone());
@@ -274,24 +336,24 @@ impl RealSpeedTester {
         // Check speed thresholds
         let mut errors = Vec::new();
 
-        if let Some(min_download) = self.config.min_download_speed {
-            if download_speed < min_download {
-                errors.push(format!(
-                    "Download speed {:.2} MB/s below threshold {:.2} MB/s",
-                    download_speed / 1_000_000.0,
-                    min_download / 1_000_000.0
-                ));
-            }
+        if let Some(min_download) = self.config.min_download_speed
+            && download_speed < min_download
+        {
+            errors.push(format!(
+                "Download speed {:.2} MB/s below threshold {:.2} MB/s",
+                download_speed / 1_000_000.0,
+                min_download / 1_000_000.0
+            ));
         }
 
-        if let Some(min_upload) = self.config.min_upload_speed {
-            if upload_speed < min_upload {
-                errors.push(format!(
-                    "Upload speed {:.2} MB/s below threshold {:.2} MB/s",
-                    upload_speed / 1_000_000.0,
-                    min_upload / 1_000_000.0
-                ));
-            }
+        if let Some(min_upload) = self.config.min_upload_speed
+            && upload_speed < min_upload
+        {
+            errors.push(format!(
+                "Upload speed {:.2} MB/s below threshold {:.2} MB/s",
+                upload_speed / 1_000_000.0,
+                min_upload / 1_000_000.0
+            ));
         }
 
         let error = if errors.is_empty() {
@@ -308,6 +370,15 @@ impl RealSpeedTester {
             error,
         )
     }
+}
+
+fn failed_results(proxies: &[ProxyConfig], error: String) -> Vec<SpeedTestResult> {
+    proxies
+        .iter()
+        .map(|proxy| {
+            SpeedTestResult::failed(proxy.name.clone(), proxy.proxy_type.clone(), error.clone())
+        })
+        .collect()
 }
 
 /// Custom latency tester that works with mihomo proxy
