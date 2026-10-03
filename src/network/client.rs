@@ -93,6 +93,20 @@ impl ProxyClient {
         Ok(self.client.get(url).send().await?)
     }
 
+    /// Make a GET request with extra headers
+    pub async fn get_with_headers(
+        &self,
+        url: &str,
+        headers: Vec<(reqwest::header::HeaderName, String)>,
+    ) -> Result<reqwest::Response> {
+        debug!("Making GET request to: {}", url);
+        let mut request = self.client.get(url);
+        for (name, value) in headers {
+            request = request.header(name, value);
+        }
+        Ok(request.send().await?)
+    }
+
     /// Create a POST request builder
     pub fn post(&self, url: &str) -> reqwest::RequestBuilder {
         debug!("Creating POST request to: {}", url);

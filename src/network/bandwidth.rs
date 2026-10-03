@@ -113,6 +113,8 @@ impl BandwidthTester {
             .client
             .post(&url)
             .header("Content-Type", "application/octet-stream")
+            .header(reqwest::header::REFERER, format!("{}/", self.server_url))
+            .header(reqwest::header::ORIGIN, &self.server_url)
             .body(data)
             .send()
             .await?;
@@ -158,7 +160,17 @@ impl BandwidthTester {
         let url = format!("{server_url}/__down?bytes={size}");
         let _start = Instant::now();
 
-        let response = client.get(&url).await?;
+        // The Cloudflare speed test endpoint rate-limits large single requests
+        // unless they look like they come from its own web page.
+        let response = client
+            .get_with_headers(
+                &url,
+                vec![
+                    (reqwest::header::REFERER, format!("{server_url}/")),
+                    (reqwest::header::ORIGIN, server_url.to_string()),
+                ],
+            )
+            .await?;
         debug!("Download chunk response status: {}", response.status());
         debug!("Download chunk response headers: {:?}", response.headers());
 

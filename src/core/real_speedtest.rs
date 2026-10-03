@@ -580,7 +580,15 @@ impl CustomBandwidthTester {
     ) -> Result<usize> {
         let url = format!("{server_url}/__down?bytes={chunk_size}");
 
-        match client.get(&url).send().await {
+        // The Cloudflare speed test endpoint rate-limits large single requests
+        // unless they look like they come from its own web page.
+        match client
+            .get(&url)
+            .header(reqwest::header::REFERER, format!("{server_url}/"))
+            .header(reqwest::header::ORIGIN, server_url)
+            .send()
+            .await
+        {
             Ok(response) => {
                 debug!(
                     "Download chunk {} attempt {} response status: {}",
@@ -644,7 +652,15 @@ impl CustomBandwidthTester {
         let data = vec![0u8; size];
 
         debug!("Starting upload of {} bytes", size);
-        let response = match self.client.post(&url).body(data).send().await {
+        let response = match self
+            .client
+            .post(&url)
+            .header(reqwest::header::REFERER, format!("{}/", self.server_url))
+            .header(reqwest::header::ORIGIN, &self.server_url)
+            .body(data)
+            .send()
+            .await
+        {
             Ok(resp) => {
                 debug!("Upload response status: {}", resp.status());
                 debug!("Upload response headers: {:?}", resp.headers());
